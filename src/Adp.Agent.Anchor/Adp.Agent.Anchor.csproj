@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Adp.Agent.Anchor</PackageId>
+    <AssemblyName>Adp.Agent.Anchor</AssemblyName>
+    <RootNamespace>Adp.Agent.Anchor</RootNamespace>
+    <Description>Optional Neo3 blockchain anchor for ADP calibration snapshots. Periodically commits signed calibration snapshots to a Neo3-compatible chain for third-party tamper evidence.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Neo.Network.RPC.RpcClient" Version="3.8.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Adp.Agent\Adp.Agent.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+    <None Include="..\..\NOTICE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

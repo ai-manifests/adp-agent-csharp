@@ -1,0 +1,41 @@
+name: Build and Publish NuGet Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-publish:
+    runs-on: linux
+    steps:
+      - name: Checkout
+        run: |
+          git clone "${{ github.server_url }}/${{ github.repository }}.git" .
+          git checkout ${{ github.sha }}
+
+      - name: Restore
+        run: dotnet restore Adp.Agent.sln
+
+      - name: Build
+        run: dotnet build Adp.Agent.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test Adp.Agent.sln -c Release --no-build
+
+      - name: Pack Adp.Agent
+        run: dotnet pack src/Adp.Agent/Adp.Agent.csproj -c Release --no-build -o ./nupkg
+
+      - name: Pack Adp.Agent.Anchor
+        run: dotnet pack src/Adp.Agent.Anchor/Adp.Agent.Anchor.csproj -c Release --no-build -o ./nupkg
+
+      - name: Publish to Gitea Packages
+        run: |
+          for pkg in nupkg/*.nupkg; do
+            echo "Pushing $pkg..."
+            dotnet nuget push "$pkg" \
+              --source "https://git.marketally.com/api/packages/ai-manifests/nuget/index.json" \
+              --api-key ${{ secrets.GITEATOKEN }} \
+              --skip-duplicate
+          done
