@@ -1,0 +1,74 @@
+# .NET build output
+bin/
+obj/
+out/
+publish/
+artifacts/
+
+# NuGet
+*.nupkg
+*.snupkg
+nupkg/
+.nuget/
+packages/
+!**/nuget.config
+
+# Visual Studio / Rider / VS Code
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.swp
+*.swo
+*~
+*.vsidx
+*.lock
+_UpgradeReport_Files/
+[Bb]ackup*/
+
+# Build output that tools may produce
+**/[Dd]ebug/
+**/[Rr]elease/
+**/x64/
+**/x86/
+**/[Ww][Ii][Nn]32/
+**/[Aa][Rr][Mm]/
+**/[Aa][Rr][Mm]64/
+**/bld/
+**/[Bb]in/
+**/[Oo]bj/
+**/[Ll]og/
+**/[Ll]ogs/
+
+# Test output
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+[Cc]overage/
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ReSharper / dotCover
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# JetBrains
+.idea/
+
+# Secrets (defensive — should never be checked in)
+*.pem
+*.key
+secrets.json
+appsettings.Local.json
+appsettings.Development.json

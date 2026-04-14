@@ -14,9 +14,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
-    <PackageReference Include="NSec.Cryptography" Version="24.4.0" />
-    <PackageReference Include="ModelContextProtocol" Version="1.2.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.5" />
+    <PackageReference Include="NSec.Cryptography" Version="25.4.0" />
+    <!--
+      ModelContextProtocol is deferred to v0.2.0 along with distributed
+      deliberation. The Mcp/AdpMcpServer.cs stub reserves the /mcp route
+      without pulling in the SDK dependency yet.
+    -->
   </ItemGroup>
 
   <ItemGroup>

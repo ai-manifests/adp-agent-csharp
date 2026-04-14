@@ -10,7 +10,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Neo.Network.RPC.RpcClient" Version="3.8.0" />
+    <!--
+      Neo3 RPC client is deferred to v0.2.0. The Neo3BlockchainStore stub
+      in this project compiles without the dependency and throws a clear
+      NotImplementedException if invoked. MockBlockchainStore works today
+      and is enough to validate the scheduler end-to-end in tests.
+    -->
   </ItemGroup>
 
   <ItemGroup>

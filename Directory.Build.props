@@ -6,6 +6,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!--
+      CS1591: missing XML comment on public member. Suppressed because the
+      codebase documents types at the type level with /// <summary> blocks
+      and doesn't attempt full property-level XML docs; treating every
+      undocumented property as a hard error is noise we don't want.
+      CS1573: parameter has no matching param tag in the XML comment —
+      same rationale.
+    -->
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
     <Authors>David H. Friedel Jr.</Authors>
     <Company>MarketAlly</Company>
     <Copyright>Copyright 2026 David H. Friedel Jr. (MarketAlly)</Copyright>
