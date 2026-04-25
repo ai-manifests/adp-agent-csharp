@@ -16,8 +16,8 @@
     -->
     <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
     <Authors>David H. Friedel Jr.</Authors>
-    <Company>MarketAlly</Company>
-    <Copyright>Copyright 2026 David H. Friedel Jr. (MarketAlly)</Copyright>
+    <Company>MarketAlly Pte Ltd</Company>
+    <Copyright>Copyright © 2026 David H Friedel Jr.</Copyright>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://adp-manifest.dev</PackageProjectUrl>
     <RepositoryUrl>https://git.marketally.com/ai-manifests/adp-agent-csharp</RepositoryUrl>
