@@ -1,5 +1,11 @@
 # Adp.Agent
 
+[![Adp.Agent](https://img.shields.io/nuget/v/Adp.Agent.svg?label=Adp.Agent)](https://www.nuget.org/packages/Adp.Agent)
+[![Adp.Agent.Anchor](https://img.shields.io/nuget/v/Adp.Agent.Anchor.svg?label=Adp.Agent.Anchor)](https://www.nuget.org/packages/Adp.Agent.Anchor)
+[![Downloads](https://img.shields.io/nuget/dt/Adp.Agent.svg?label=Adp.Agent%20downloads)](https://www.nuget.org/packages/Adp.Agent)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Spec](https://img.shields.io/badge/spec-adp--manifest.dev-informational)](https://adp-manifest.dev)
+
 C# / .NET 10 reference implementation of the [Agent Deliberation Protocol](https://adp-manifest.dev). Sister project to the TypeScript [`@ai-manifests/adp-agent`](https://github.com/ai-manifests/adp-agent) runtime — same behaviour, same wire format, same cross-language golden-vector tests for signing interop.
 
 Two NuGet packages published from this repo:
