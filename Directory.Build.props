@@ -20,9 +20,9 @@
     <Copyright>Copyright © 2026 David H Friedel Jr.</Copyright>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://adp-manifest.dev</PackageProjectUrl>
-    <RepositoryUrl>https://git.marketally.com/ai-manifests/adp-agent-csharp</RepositoryUrl>
+    <RepositoryUrl>https://github.com/ai-manifests/adp-agent-csharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
   </PropertyGroup>
 
 </Project>
