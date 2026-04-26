@@ -1,6 +1,6 @@
 # Adp.Agent
 
-C# / .NET 10 reference implementation of the [Agent Deliberation Protocol](https://adp-manifest.dev). Sister project to the TypeScript [`@ai-manifests/adp-agent`](https://git.marketally.com/ai-manifests/adp-agent) runtime — same behaviour, same wire format, same cross-language golden-vector tests for signing interop.
+C# / .NET 10 reference implementation of the [Agent Deliberation Protocol](https://adp-manifest.dev). Sister project to the TypeScript [`@ai-manifests/adp-agent`](https://github.com/ai-manifests/adp-agent) runtime — same behaviour, same wire format, same cross-language golden-vector tests for signing interop.
 
 Two NuGet packages published from this repo:
 
@@ -10,9 +10,9 @@ Two NuGet packages published from this repo:
 | `Adp.Agent.Anchor` | Optional Neo3 blockchain anchor — periodically commits signed calibration snapshots to a Neo3-compatible chain for third-party tamper evidence. |
 
 The runtime depends on the three reference libraries:
-- [`Adj.Manifest`](https://git.marketally.com/ai-manifests/adj-ref-lib-csharp) — ADJ entry types, scoring, journal store interface
-- [`Adp.Manifest`](https://git.marketally.com/ai-manifests/adp-ref-lib-csharp) — ADP proposal types, weighting math, orchestrator
-- [`Acb.Manifest`](https://git.marketally.com/ai-manifests/acb-ref-lib-csharp) — ACB entry types, pricing, settlement
+- [`Adj.Manifest`](https://github.com/ai-manifests/adj-ref-lib-csharp) — ADJ entry types, scoring, journal store interface
+- [`Adp.Manifest`](https://github.com/ai-manifests/adp-ref-lib-csharp) — ADP proposal types, weighting math, orchestrator
+- [`Acb.Manifest`](https://github.com/ai-manifests/acb-ref-lib-csharp) — ACB entry types, pricing, settlement
 
 ## Install
 
@@ -68,7 +68,7 @@ The `AdpAgentHost` class serves:
 - `GET /adj/v0/outcome/{id}`
 - `GET /adj/v0/entries`
 
-The adopter implements `IEvaluator` (the function that produces votes) and hands it to the host via DI. See [`adp-agent-template-csharp`](https://git.marketally.com/ai-manifests/adp-agent-template-csharp) for the full starter pattern.
+The adopter implements `IEvaluator` (the function that produces votes) and hands it to the host via DI. See [`adp-agent-template-csharp`](https://github.com/ai-manifests/adp-agent-template-csharp) for the full starter pattern.
 
 ## With optional chain anchoring
 
