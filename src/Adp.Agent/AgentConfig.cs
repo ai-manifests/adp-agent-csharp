@@ -152,14 +152,43 @@ public sealed record CalibrationAnchorConfig
 /// <summary>Strategy-pattern evaluator config. Adopters usually implement <c>IEvaluator</c> directly.</summary>
 public sealed record EvaluatorConfig
 {
-    /// <summary><c>shell</c>, <c>static</c>, or a custom kind your code knows how to resolve.</summary>
+    /// <summary><c>shell</c>, <c>static</c>, <c>llm</c>, or a custom kind your code knows how to resolve.</summary>
     public required string Kind { get; init; }
 
     /// <summary>Shell command (for <c>kind: shell</c>).</summary>
     public string? Command { get; init; }
 
+    /// <summary>Kill the command / abort the LLM request after this many milliseconds.</summary>
     public int TimeoutMs { get; init; } = 60_000;
 
     /// <summary><c>exit-code</c> (0=approve, non-zero=reject) or <c>json</c> (parse stdout as JSON vote).</summary>
     public string ParseOutput { get; init; } = "exit-code";
+
+    // --- LLM evaluator fields (kind: 'llm') ---
+
+    /// <summary>Which LLM API to call: <c>anthropic</c> or <c>openai</c>.</summary>
+    public string? Provider { get; init; }
+
+    /// <summary>Provider model id (e.g. <c>claude-opus-4-7</c>, <c>gpt-5</c>).</summary>
+    public string? Model { get; init; }
+
+    /// <summary>
+    /// System prompt — the agent's identity and judging criteria. Stable
+    /// across actions, so providers may cache it server-side (Anthropic
+    /// prompt caching is enabled when this is set).
+    /// </summary>
+    public string? SystemPrompt { get; init; }
+
+    /// <summary>
+    /// User-message template. Placeholders substituted at call time:
+    /// <c>{action.kind}</c>, <c>{action.target}</c>, <c>{action.parameters}</c>,
+    /// <c>{agent.id}</c>, <c>{agent.decisionClass}</c>.
+    /// </summary>
+    public string? UserTemplate { get; init; }
+
+    /// <summary>Max tokens for the response (default 1024).</summary>
+    public int MaxTokens { get; init; } = 1024;
+
+    /// <summary>Sampling temperature (default 0 — deterministic).</summary>
+    public double Temperature { get; init; } = 0;
 }

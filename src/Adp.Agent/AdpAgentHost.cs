@@ -163,6 +163,7 @@ public sealed class AdpAgentHost
         {
             { Kind: "shell" } => new ShellEvaluator(config),
             { Kind: "static" } => new StaticEvaluator(config),
+            { Kind: "llm" } => new LlmEvaluator(config),
             null => new StaticEvaluator(config),
             var other => throw new InvalidOperationException(
                 $"Unknown evaluator kind '{other.Kind}'. Implement IEvaluator yourself and pass it via AdpAgentHostOptions.Evaluator."),

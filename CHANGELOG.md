@@ -5,6 +5,41 @@ All notable changes to `Adp.Agent` and `Adp.Agent.Anchor` are documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-05-02
+
+### Added — `llm` evaluator kind
+
+`EvaluatorConfig.Kind = "llm"` lets an agent vote via an LLM provider
+(Anthropic or OpenAI) instead of a shell command or static defaults. The
+evaluator forces a structured response so the runtime always receives a
+valid `EvaluationResult`:
+
+- **Anthropic**: tool_use forced output (`tool_choice: { type: "tool", name: "submit_vote" }`).
+  System prompt is marked `cache_control: { type: "ephemeral" }` so identical
+  system prompts across actions hit the prompt cache.
+- **OpenAI**: Structured Outputs (`response_format: { type: "json_schema", strict: true }`).
+
+**New class:** `Adp.Agent.Evaluator.LlmEvaluator`. The host's
+`BuildDefaultEvaluator` selects it automatically when
+`config.Evaluator.Kind == "llm"`.
+
+**Config additions on `EvaluatorConfig`** (all consulted only when `Kind == "llm"`):
+- `Provider`: `"anthropic"` or `"openai"`
+- `Model`: provider model id (e.g. `claude-opus-4-7`, `gpt-5`)
+- `SystemPrompt`, `UserTemplate` (with placeholders `{action.kind}`,
+  `{action.target}`, `{action.parameters}`, `{agent.id}`, `{agent.decisionClass}`)
+- `MaxTokens` (default 1024), `Temperature` (default 0)
+
+API keys are read from environment (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`)
+— deliberately not part of `EvaluatorConfig` so config JSON can be
+committed without secrets.
+
+### Tests
+- `tests/Adp.Agent.Tests/LlmEvaluatorTests.cs` — 9 tests covering template
+  substitution, both providers' happy paths, missing keys, malformed
+  responses, and HTTP-error fallback. All 24 tests in the agent suite
+  pass.
+
 ## [0.5.0] - 2026-05-02
 
 ### Fixed (breaking default change) — ADP §7.2 / §7.3 terminal state classification
