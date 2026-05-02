@@ -5,6 +5,60 @@ All notable changes to `Adp.Agent` and `Adp.Agent.Anchor` are documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-05-02
+
+### Fixed (breaking default change) — ADP §7.2 / §7.3 terminal state classification
+
+`0.4.x` and earlier hardcoded `DetermineTermination(tally, hasReversibleSubset: true)`
+in `PeerDeliberation.RunAsync`, which meant **every non-converged deliberation
+was classified as `PartialCommit`**, regardless of whether the action was
+actually decomposable. ADP §7.2 explicitly requires both that the action have
+independently-executable sub-actions AND that a reversible sub-action meet
+simple majority on its own sub-tally; without those, the spec-correct terminal
+state is `Deadlocked` (§7.3).
+
+The misclassification meant federation-health metrics (notably any "deadlock
+rate" derived metric) read zero against federations that were in fact
+deadlocking, and any downstream escalation logic that fired on `Deadlocked`
+(per §7.3 — "the deliberation is escalated with the full debate trace")
+never triggered.
+
+### Added
+- New optional callback on `PeerDeliberationOptions`:
+  ```csharp
+  Func<Adj.Manifest.ActionDescriptor, TallyResult, bool>? HasReversibleSubset
+  ```
+  The runner invokes this with the final tally before classification. When
+  omitted (or returns `false`), non-converged outcomes resolve as
+  `Deadlocked`. When the callback returns `true`, they resolve as
+  `PartialCommit`. Decomposition is action-kind-specific, so the decision
+  belongs to the caller — the runner does not attempt to recompute a
+  sub-tally on its own.
+
+### Changed (breaking default)
+- Without an explicit `HasReversibleSubset` callback, non-converged
+  deliberations now resolve as **`Deadlocked`** (was `PartialCommit`).
+  This is the spec-correct default for atomic actions
+  (`merge_pull_request`, `deploy`, `revoke_token`, …) which is the vast
+  majority of real-world deliberations.
+
+### Migration
+- Adopters whose actions are genuinely decomposable
+  (`apply_terraform_plan` with per-resource sub-actions, batched-config-change
+  PRs with per-file sub-actions, etc.) must add `HasReversibleSubset` to
+  their `PeerDeliberationOptions` and return `true` only when both
+  conditions in §7.2 hold.
+- Adopters relying on the `PartialCommit` label without actually having a
+  reversible subset were already in spec violation; the new default surfaces
+  this explicitly. Their `deliberation_closed.termination` values will flip
+  from `partial_commit` to `deadlocked` for any deliberation that hits the
+  non-converged path. If escalation handlers were keyed on `partial_commit`,
+  rewire them to fire on `deadlocked`.
+
+### Tests
+- `tests/Adp.Agent.Tests/PeerDeliberationTerminationTests.cs` — covers
+  default-deadlocked, explicit-partial-commit, and callback argument shape.
+
 ## [0.4.0] - 2026-05-02
 
 > **Version alignment.** This release jumps the C# library from `0.1.x`

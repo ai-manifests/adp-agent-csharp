@@ -14,12 +14,24 @@ namespace Adp.Agent.Deliberation;
 /// Optional run-time options for <see cref="PeerDeliberation.RunAsync"/>.
 /// Mirrors the TS runtime's <c>DeliberationRunOptions</c>.
 /// </summary>
-// Optional pre-loaded historical deliberations for ACB habit memory.
-// When null, callers that wired IRuntimeJournalStoreScannable can supply
-// history at run time; otherwise habit discount is zero.
+// PeerDeliberationOptions
+//   - Budget: optional ACB budget that funds this deliberation.
+//   - HabitHistory: optional pre-loaded historical deliberations for ACB
+//     habit memory. When null, callers that wired
+//     IRuntimeJournalStoreScannable can supply history at run time;
+//     otherwise habit discount is zero.
+//   - HasReversibleSubset: ADP §7.2 / §7.3 callback. Returns true when
+//     the action under deliberation has a reversible subset that can
+//     independently commit when convergence on the whole action fails.
+//     Default null → treated as false → non-converged outcomes resolve
+//     as `Deadlocked`. Adopters with decomposable actions plug their
+//     own logic and return true only when (a) the action's kind is
+//     decomposable AND (b) the reversible subset has been verified to
+//     meet simple majority on its own sub-tally.
 public sealed record PeerDeliberationOptions(
     BudgetCommitted? Budget = null,
-    IReadOnlyList<HistoricalDeliberation>? HabitHistory = null
+    IReadOnlyList<HistoricalDeliberation>? HabitHistory = null,
+    Func<ActionDescriptor, Adp.Manifest.TallyResult, bool>? HasReversibleSubset = null
 );
 
 /// <summary>
@@ -276,7 +288,13 @@ public sealed class PeerDeliberation
         }
 
         // 5. Close
-        var status = _orchestrator.DetermineTermination(tally, hasReversibleSubset: true);
+        // ADP §7.2 / §7.3: reversibility-subset detection is the caller's
+        // responsibility because decomposition is action-kind specific.
+        // Default-null → treated as false → atomic-action non-convergence
+        // resolves as `Deadlocked`. Adopters with decomposable actions
+        // plug their own callback in PeerDeliberationOptions.
+        var reversibleSubset = options.HasReversibleSubset?.Invoke(action, tally) ?? false;
+        var status = _orchestrator.DetermineTermination(tally, hasReversibleSubset: reversibleSubset);
         _journalEntries.Add(new DeliberationClosed(
             EntryId: NewEntryId(),
             DeliberationId: dlbId,
