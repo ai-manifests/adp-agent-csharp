@@ -14,6 +14,17 @@ public sealed record AgentConfig
     /// <summary>The DID of this agent, e.g. <c>did:adp:test-runner-v1</c>.</summary>
     public required string AgentId { get; init; }
 
+    /// <summary>
+    /// Override the URL published as <c>manifest.journalEndpoint</c>. By
+    /// default the manifest publishes <c>http://{Domain}:{Port}/adj/v0</c>,
+    /// which is correct for peer-to-peer calls inside the same network.
+    /// When the agent sits behind a TLS-terminating proxy (Cloudflare,
+    /// Caddy, ingress controller), external peers can't reach the
+    /// internal port and need the proxy URL instead — for example
+    /// <c>https://my-agent.example.com/adj/v0</c>.
+    /// </summary>
+    public string? PublicJournalEndpoint { get; init; }
+
     /// <summary>HTTP port the agent listens on.</summary>
     public required int Port { get; init; }
 
