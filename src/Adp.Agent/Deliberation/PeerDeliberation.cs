@@ -7,6 +7,7 @@ using AdjTerminationState = Adj.Manifest.TerminationState;
 using AcbTerminationState = Acb.Manifest.TerminationState;
 using AdjDeliberationConfig = Adj.Manifest.DeliberationConfig;
 using AcbTally = Acb.Manifest.Tally;
+using AdpCalibrationScore = Adp.Manifest.CalibrationScore;
 
 namespace Adp.Agent.Deliberation;
 
@@ -116,12 +117,35 @@ public sealed class PeerDeliberation
         var dlbId = $"dlb_{Guid.NewGuid():N}";
         var now = DateTimeOffset.UtcNow;
 
-        // 1. Discover peers — fetchManifest also populates the transport's URL→agentId map
-        foreach (var peer in _peers)
+        // 1. Discover peers in parallel — a slow or briefly-unavailable peer
+        //    must not block discovery for the rest of the federation.
+        //    Failed peers are logged and dropped from the participant set.
+        var discoveryTasks = _peers
+            .Select(async peer =>
+            {
+                try
+                {
+                    var m = await _transport.FetchManifestAsync(peer.Url, ct).ConfigureAwait(false);
+                    return (Url: peer.Url, Manifest: (AgentManifest?)m, Error: (Exception?)null);
+                }
+                catch (Exception ex)
+                {
+                    return (Url: peer.Url, Manifest: (AgentManifest?)null, Error: (Exception?)ex);
+                }
+            })
+            .ToList();
+        var discoveryResults = await Task.WhenAll(discoveryTasks).ConfigureAwait(false);
+        foreach (var r in discoveryResults)
         {
-            var manifest = await _transport.FetchManifestAsync(peer.Url, ct).ConfigureAwait(false);
-            _manifests[manifest.AgentId] = manifest;
-            _peerUrlMap[manifest.AgentId] = peer.Url;
+            if (r.Manifest is { } manifest)
+            {
+                _manifests[manifest.AgentId] = manifest;
+                _peerUrlMap[manifest.AgentId] = r.Url;
+            }
+            else
+            {
+                Console.Error.WriteLine($"[deliberation] peer discovery failed for {r.Url}: {r.Error?.Message}");
+            }
         }
 
         // Self-manifest. The initiator never fetches its own manifest, so
@@ -161,19 +185,47 @@ public sealed class PeerDeliberation
             Participants: participants,
             Config: new AdjDeliberationConfig(MaxRounds: 3, ParticipationFloor: 0.50)));
 
-        // 2. Request proposals from peers
-        foreach (var (agentId, manifest) in _manifests)
+        // 2. Request proposals from peers in parallel.
+        //    Sequential proposal collection is the worst hotspot for
+        //    LLM-evaluator peers: each request blocks on the peer's LLM
+        //    call (5–30s), so 8 sequential peers take 2+ minutes. Fanning
+        //    out cuts wall-clock cost to max(peer time), not sum.
+        //    A peer that times out, returns 5xx, or otherwise errors is
+        //    logged and dropped; the deliberation continues with whoever
+        //    produced a valid proposal (participation_floor enforces
+        //    quorum downstream).
+        var proposalTasks = _manifests
+            .Select(async kv =>
+            {
+                var (agentId, manifest) = kv;
+                try
+                {
+                    var resp = await _transport.RequestProposalAsync(_peerUrlMap[agentId], dlbId, action, tier, ct).ConfigureAwait(false);
+                    var domain = manifest.DomainAuthorities.Keys.FirstOrDefault() ?? _self.DecisionClasses[0];
+                    var authority = manifest.DomainAuthorities.TryGetValue(domain, out var auth) ? auth.Authority : 0.5;
+                    var cal = await _transport.FetchCalibrationAsync(manifest.JournalEndpoint, agentId, domain, ct).ConfigureAwait(false);
+                    return (AgentId: agentId, Manifest: (AgentManifest?)manifest, Resp: (PeerProposalResponse?)resp,
+                        Domain: domain, Authority: authority, Cal: (AdpCalibrationScore?)cal, Error: (Exception?)null);
+                }
+                catch (Exception ex)
+                {
+                    return (AgentId: agentId, Manifest: (AgentManifest?)null, Resp: (PeerProposalResponse?)null,
+                        Domain: string.Empty, Authority: 0.0, Cal: (AdpCalibrationScore?)null, Error: (Exception?)ex);
+                }
+            })
+            .ToList();
+        var proposalResults = await Task.WhenAll(proposalTasks).ConfigureAwait(false);
+        foreach (var r in proposalResults)
         {
-            var resp = await _transport.RequestProposalAsync(_peerUrlMap[agentId], dlbId, action, tier, ct).ConfigureAwait(false);
-            _proposals.Add(resp.Proposal);
-            _contributionTracker.RecordProposal(agentId);
-
-            var domain = manifest.DomainAuthorities.Keys.FirstOrDefault() ?? _self.DecisionClasses[0];
-            var authority = manifest.DomainAuthorities.TryGetValue(domain, out var auth) ? auth.Authority : 0.5;
-            var cal = await _transport.FetchCalibrationAsync(manifest.JournalEndpoint, agentId, domain, ct).ConfigureAwait(false);
-            _weights[agentId] = WeightingFunction.ComputeWeight(authority, cal, domain, resp.Proposal.Stake.Magnitude);
-
-            _journalEntries.Add(BuildProposalEmitted(dlbId, resp.Proposal, domain));
+            if (r.Error is { } err || r.Resp is null || r.Cal is null)
+            {
+                Console.Error.WriteLine($"[deliberation] peer proposal failed for {r.AgentId}: {r.Error?.Message ?? "no response"}");
+                continue;
+            }
+            _proposals.Add(r.Resp.Proposal);
+            _contributionTracker.RecordProposal(r.AgentId);
+            _weights[r.AgentId] = WeightingFunction.ComputeWeight(r.Authority, r.Cal, r.Domain, r.Resp.Proposal.Stake.Magnitude);
+            _journalEntries.Add(BuildProposalEmitted(dlbId, r.Resp.Proposal, r.Domain));
         }
 
         // Self-proposal — same path as peers, exercises the auth round-trip
@@ -357,10 +409,10 @@ public sealed class PeerDeliberation
             _journal.Append(entry);
         }
         var allUrls = _peers.Select(p => p.Url).Append(selfUrl).ToList();
-        foreach (var url in allUrls)
-        {
-            await _transport.PushJournalEntriesAsync(url, _journalEntries, ct).ConfigureAwait(false);
-        }
+        // Push in parallel — best-effort. A peer that's gone away
+        // post-proposal must not block journal distribution to the others.
+        await Task.WhenAll(allUrls.Select(url => _transport.PushJournalEntriesAsync(url, _journalEntries, ct)))
+            .ConfigureAwait(false);
 
         return new PeerDeliberationResult(
             DeliberationId: dlbId,

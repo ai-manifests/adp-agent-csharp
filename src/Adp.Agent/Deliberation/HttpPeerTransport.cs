@@ -25,6 +25,21 @@ namespace Adp.Agent.Deliberation;
 /// </summary>
 public sealed class HttpPeerTransport : IPeerTransport
 {
+    /// <summary>
+    /// Per-call timeout for slow peer responses (proposal requests block on
+    /// the peer's evaluator, which may be a 5–30s LLM call). Without this
+    /// an unresponsive peer hangs the deliberation indefinitely — matches
+    /// the equivalent TS lib default.
+    /// </summary>
+    private static readonly TimeSpan ProposalTimeout = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// Tighter timeout for fetches that should be near-instant (manifest,
+    /// calibration, journal gossip). A peer that takes &gt;10s to serve a
+    /// static .well-known doc is effectively dead.
+    /// </summary>
+    private static readonly TimeSpan FastTimeout = TimeSpan.FromSeconds(10);
+
     private readonly HttpClient _http;
     private readonly AuthConfig? _auth;
     private readonly Dictionary<string, string> _peerAgentIds = new();
@@ -45,16 +60,25 @@ public sealed class HttpPeerTransport : IPeerTransport
         _peerAgentIds[peerUrl] = agentId;
     }
 
+    /// <summary>Build a CancellationToken that times out after <paramref name="timeout"/> while honouring the caller's <paramref name="outer"/> cancellation.</summary>
+    private static CancellationTokenSource WithTimeout(CancellationToken outer, TimeSpan timeout)
+    {
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(outer);
+        cts.CancelAfter(timeout);
+        return cts;
+    }
+
     public async Task<AgentManifest> FetchManifestAsync(string peerUrl, CancellationToken ct = default)
     {
+        using var timeoutCts = WithTimeout(ct, FastTimeout);
         using var req = new HttpRequestMessage(HttpMethod.Get, $"{peerUrl}/.well-known/adp-manifest.json");
-        using var res = await _http.SendAsync(req, ct).ConfigureAwait(false);
+        using var res = await _http.SendAsync(req, timeoutCts.Token).ConfigureAwait(false);
         if (!res.IsSuccessStatusCode)
         {
             throw new HttpRequestException(
                 $"Manifest fetch failed: {peerUrl} → {(int)res.StatusCode}");
         }
-        var manifest = await res.Content.ReadFromJsonAsync<AgentManifest>(JsonOptions, ct).ConfigureAwait(false)
+        var manifest = await res.Content.ReadFromJsonAsync<AgentManifest>(JsonOptions, timeoutCts.Token).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Manifest from {peerUrl} parsed as null");
         // Populate the URL → agentId map as a side-effect, mirroring the TS
         // HttpTransport behavior. The same binding is established by
@@ -68,12 +92,13 @@ public sealed class HttpPeerTransport : IPeerTransport
     {
         try
         {
+            using var timeoutCts = WithTimeout(ct, FastTimeout);
             var url = $"{journalEndpoint}/calibration?agent_id={Uri.EscapeDataString(agentId)}&domain={Uri.EscapeDataString(domain)}";
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
-            using var res = await _http.SendAsync(req, ct).ConfigureAwait(false);
+            using var res = await _http.SendAsync(req, timeoutCts.Token).ConfigureAwait(false);
             if (res.IsSuccessStatusCode)
             {
-                var score = await res.Content.ReadFromJsonAsync<CalibrationScore>(JsonOptions, ct).ConfigureAwait(false);
+                var score = await res.Content.ReadFromJsonAsync<CalibrationScore>(JsonOptions, timeoutCts.Token).ConfigureAwait(false);
                 if (score is not null) return score;
             }
         }
@@ -94,14 +119,15 @@ public sealed class HttpPeerTransport : IPeerTransport
             action = new { kind = action.Kind, target = action.Target, parameters = action.Parameters },
             tier,
         };
+        using var timeoutCts = WithTimeout(ct, ProposalTimeout);
         using var req = BuildRequest(HttpMethod.Post, $"{peerUrl}/api/propose", peerUrl, body);
-        using var res = await _http.SendAsync(req, ct).ConfigureAwait(false);
+        using var res = await _http.SendAsync(req, timeoutCts.Token).ConfigureAwait(false);
         if (!res.IsSuccessStatusCode)
         {
             throw new HttpRequestException(
                 $"Proposal request failed: {peerUrl} → {(int)res.StatusCode}");
         }
-        var envelope = await res.Content.ReadFromJsonAsync<ProposalEnvelope>(JsonOptions, ct).ConfigureAwait(false)
+        var envelope = await res.Content.ReadFromJsonAsync<ProposalEnvelope>(JsonOptions, timeoutCts.Token).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Proposal envelope from {peerUrl} parsed as null");
         return new PeerProposalResponse(envelope.Proposal, envelope.Signature);
     }
@@ -110,8 +136,9 @@ public sealed class HttpPeerTransport : IPeerTransport
         string peerUrl, string conditionId, int round, string evidenceAgentId, CancellationToken ct = default)
     {
         var body = new { conditionId, round, evidenceAgentId };
+        using var timeoutCts = WithTimeout(ct, ProposalTimeout);
         using var req = BuildRequest(HttpMethod.Post, $"{peerUrl}/api/respond-falsification", peerUrl, body);
-        using var res = await _http.SendAsync(req, ct).ConfigureAwait(false);
+        using var res = await _http.SendAsync(req, timeoutCts.Token).ConfigureAwait(false);
         if (!res.IsSuccessStatusCode)
         {
             // Per the spec, a non-responding peer's vote stands unchanged. We
@@ -119,17 +146,18 @@ public sealed class HttpPeerTransport : IPeerTransport
             // continues rather than failing.
             return new FalsificationResponse(Action: "reject", Reason: $"peer returned {(int)res.StatusCode}");
         }
-        var parsed = await res.Content.ReadFromJsonAsync<FalsificationResponse>(JsonOptions, ct).ConfigureAwait(false);
+        var parsed = await res.Content.ReadFromJsonAsync<FalsificationResponse>(JsonOptions, timeoutCts.Token).ConfigureAwait(false);
         return parsed ?? new FalsificationResponse(Action: "reject", Reason: "unparseable response");
     }
 
     public async Task PushJournalEntriesAsync(
         string peerUrl, IReadOnlyList<JournalEntry> entries, CancellationToken ct = default)
     {
+        using var timeoutCts = WithTimeout(ct, FastTimeout);
         using var req = BuildRequest(HttpMethod.Post, $"{peerUrl}/adj/v0/entries", peerUrl, entries);
         try
         {
-            using var res = await _http.SendAsync(req, ct).ConfigureAwait(false);
+            using var res = await _http.SendAsync(req, timeoutCts.Token).ConfigureAwait(false);
             // Best-effort gossip — peers that reject the push (revoked,
             // suspended, validating) don't break the initiator's transcript.
         }
