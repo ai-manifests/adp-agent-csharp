@@ -5,6 +5,25 @@ All notable changes to `Adp.Agent` and `Adp.Agent.Anchor` are documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-05-02
+
+### Fixed — LLM evaluator: omit `Temperature` when caller doesn't set it
+
+`0.6.0` always included `temperature` in the request body, defaulting to
+`0`. Newer Anthropic models (e.g. `claude-opus-4-7`, `claude-sonnet-4-6`)
+reject the parameter even at `0` with `400 invalid_request_error:
+temperature is deprecated for this model`, which made the evaluator
+unusable on those models out of the box.
+
+The fix: `EvaluatorConfig.Temperature` is now `double?` (nullable). It's
+only forwarded to the provider when explicitly set. Configs that don't
+mention temperature — the recommended default — work on every model.
+
+### Behaviour change
+- `EvaluatorConfig.Temperature` type changed from `double` (default 0) to
+  `double?` (default null). Callers binding configs from JSON with no
+  `temperature` field now produce `null`, not `0`.
+
 ## [0.6.0] - 2026-05-02
 
 ### Added — `llm` evaluator kind

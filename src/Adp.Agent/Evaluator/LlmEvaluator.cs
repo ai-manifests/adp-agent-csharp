@@ -88,13 +88,12 @@ public sealed class LlmEvaluator : IEvaluator
         if (string.IsNullOrEmpty(apiKey))
             throw new InvalidOperationException("ANTHROPIC_API_KEY not set in environment");
 
-        var body = new
+        var body = new Dictionary<string, object?>
         {
-            model = _evalConfig.Model,
-            max_tokens = _evalConfig.MaxTokens,
-            temperature = _evalConfig.Temperature,
-            system = new[] { new { type = "text", text = _evalConfig.SystemPrompt!, cache_control = new { type = "ephemeral" } } },
-            tools = new[]
+            ["model"] = _evalConfig.Model,
+            ["max_tokens"] = _evalConfig.MaxTokens,
+            ["system"] = new[] { new { type = "text", text = _evalConfig.SystemPrompt!, cache_control = new { type = "ephemeral" } } },
+            ["tools"] = new[]
             {
                 new
                 {
@@ -103,9 +102,10 @@ public sealed class LlmEvaluator : IEvaluator
                     input_schema = VoteSchema(),
                 },
             },
-            tool_choice = new { type = "tool", name = "submit_vote" },
-            messages = new[] { new { role = "user", content = userMessage } },
+            ["tool_choice"] = new { type = "tool", name = "submit_vote" },
+            ["messages"] = new[] { new { role = "user", content = userMessage } },
         };
+        if (_evalConfig.Temperature is double t) body["temperature"] = t;
 
         using var req = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages")
         {
@@ -143,22 +143,22 @@ public sealed class LlmEvaluator : IEvaluator
         if (string.IsNullOrEmpty(apiKey))
             throw new InvalidOperationException("OPENAI_API_KEY not set in environment");
 
-        var body = new
+        var body = new Dictionary<string, object?>
         {
-            model = _evalConfig.Model,
-            temperature = _evalConfig.Temperature,
-            max_completion_tokens = _evalConfig.MaxTokens,
-            messages = new object[]
+            ["model"] = _evalConfig.Model,
+            ["max_completion_tokens"] = _evalConfig.MaxTokens,
+            ["messages"] = new object[]
             {
                 new { role = "system", content = _evalConfig.SystemPrompt! },
                 new { role = "user", content = userMessage },
             },
-            response_format = new
+            ["response_format"] = new
             {
                 type = "json_schema",
                 json_schema = new { name = "submit_vote", schema = VoteSchema(), strict = true },
             },
         };
+        if (_evalConfig.Temperature is double t) body["temperature"] = t;
 
         using var req = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions")
         {

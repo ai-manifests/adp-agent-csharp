@@ -189,6 +189,11 @@ public sealed record EvaluatorConfig
     /// <summary>Max tokens for the response (default 1024).</summary>
     public int MaxTokens { get; init; } = 1024;
 
-    /// <summary>Sampling temperature (default 0 — deterministic).</summary>
-    public double Temperature { get; init; } = 0;
+    /// <summary>
+    /// Sampling temperature. Optional — only sent to the provider when
+    /// explicitly set. Newer Anthropic models (and some OpenAI reasoning
+    /// models) reject the parameter even at <c>0</c>, so leaving this
+    /// unset is the safest default.
+    /// </summary>
+    public double? Temperature { get; init; }
 }
