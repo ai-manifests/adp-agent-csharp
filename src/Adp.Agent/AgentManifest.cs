@@ -35,7 +35,12 @@ public sealed record AgentManifest(
             kv => new DomainAuthority(
                 Authority: kv.Value,
                 Source: $"mcp-manifest:{config.AgentId}#authorities")),
-        JournalEndpoint: $"http://{config.Domain}:{config.Port}/adj/v0",
+        // Default: internal `Domain:Port` URL, which works for peer-to-peer
+        // calls in the same network (loopback / hairpin). Override with
+        // <c>AgentConfig.PublicJournalEndpoint</c> when the agent sits behind
+        // a TLS-terminating proxy and external callers (e.g. the registry
+        // audit) need the proxy URL.
+        JournalEndpoint: config.PublicJournalEndpoint ?? $"http://{config.Domain}:{config.Port}/adj/v0",
         PublicKey: config.Auth?.PublicKey,
         TrustLevel: "open"
     );
