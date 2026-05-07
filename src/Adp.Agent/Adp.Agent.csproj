@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Adp.Agent</PackageId>
+    <AssemblyName>Adp.Agent</AssemblyName>
+    <RootNamespace>Adp.Agent</RootNamespace>
+    <Description>Reference implementation of the Agent Deliberation Protocol (ADP). Runtime for agents that deliberate, sign proposals, journal outcomes, and publish signed calibration snapshots.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.5" />
+    <PackageReference Include="NSec.Cryptography" Version="25.4.0" />
+    <!--
+      ModelContextProtocol is deferred to v0.2.0 along with distributed
+      deliberation. The Mcp/AdpMcpServer.cs stub reserves the /mcp route
+      without pulling in the SDK dependency yet.
+    -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Adj.Manifest" Version="0.1.1" />
+    <PackageReference Include="Adp.Manifest" Version="0.1.1" />
+    <PackageReference Include="Acb.Manifest" Version="0.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+    <None Include="..\..\NOTICE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
